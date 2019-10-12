@@ -25,6 +25,7 @@ def getSyn(df):
 	return df.loc[df["Info"].str.contains('[SYN]',regex=False) ]
 
 def getEnd(df):
+	df_new = df.loc[df["Info"].str.contains('FIN|RST')] 
 	return df.loc[df["Info"].str.contains('FIN|RST')]
 
 # Q1
@@ -51,6 +52,7 @@ def plotFlows(df):
 	x = list(range(0,25))
 	y = list(counts)
 	plt.hist(x[:-1],x,weights=y)
+	plt.show()
 
 def getConnections(df):
 	df_syn = getSyn(df);
