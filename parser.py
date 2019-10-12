@@ -24,6 +24,10 @@ def getFTP(df):
 def getSyn(df):
 	return df.loc[df["Info"].str.contains('[SYN]',regex=False) ]
 
+def getEnd(df):
+	return df.loc[df["Info"].str.contains('FIN|RST')]
+
+# Q1
 def getNums(df):
 	df1 = getSyn(df)
 	df1 = df.drop_duplicates(subset=['Info'])
@@ -33,9 +37,10 @@ def getFlows(df):
 	df1 = getTCP(getSyn(df))
 	return df1.drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"])
 
+# Q2
 def numFlows(df):
 	return getFlows(df).size
-
+# Q3
 def plotFlows(df):
 	df1 = getFlows(df)
 	startTime = df1["Time"].iloc[0]
@@ -43,8 +48,10 @@ def plotFlows(df):
 	binlist = list(range(startTime,endTime,3600))
 	binlist.append(binlist[-1]+3600)
 	counts = pd.cut(df1["Time"],bins = binlist, include_lowest=True).value_counts(sort=False)
-	x = list(range(0,24))
+	x = list(range(0,25))
 	y = list(counts)
-	plt.hist(x,x,weights=y)
+	plt.hist(x[:-1],x,weights=y)
 
-	
+def getConnections(df):
+	df_syn = getSyn(df);
+	df_end = getEnd(df);
