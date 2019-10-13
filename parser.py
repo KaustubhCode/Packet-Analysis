@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 
 def cleanData(df):
 	df['Info'] = df['Info'].apply(lambda x: x.strip())
@@ -97,25 +98,34 @@ def connectionBytes(df):
 	X = []
 	Y = []
 	Z = []
+	key = []
 	for i in df_final:
+		key.append(i)
 		X.append(df_final[i][0])
 		Y.append(df_final[i][1])
 		Z.append(df_final[i][2])
 	X = np.array(X)
 	Y = np.array(Y)
 	Z = np.array(Z)
+	key = np.array(key)
 	sort = X.argsort()
+	key = key[sort]
 	X = X[sort]
 	Y = Y[sort]
 	Z = Z[sort]
 
 
-	plt.scatter(X[:-2],Y[:-2],c='r')
-	plt.scatter(X[:-2],Z[:-2],c='g')
-	# plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
-	plt.show()
+	# plt.scatter(X[:-2],Y[:-2],c='r')
+	# plt.scatter(X[:-2],Z[:-2],c='g')
+	# # plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
+	# plt.show()
 
 	#To implement PEARSONS
+	ind = Z.argsort()
+	Z = Z[ind]
+	key = key[ind]
+	# print("Max Size ", Z[-1], " Min Size: ", Z[0])
+	return np.flip(key,0)
 
 # Q6
 def plotInterArrival(df):
@@ -170,34 +180,69 @@ def plotPacketLengths(df):
 
 #Q9
 def getSingleFlow(df, df_sel):
-	mask1 = (df["Source"] == df_sel["Source"].iloc[0]) and \
-					(df["Destination"] == df_sel["Destination"].iloc[0]) and \
-					(df["Source Port"] == df_sel["Source Port"].iloc[0]) and \
-					(df["Destination Port"] == df_sel["Destination Port"].iloc[0])
-	mask2 = (df["Source"] == df_sel["Destination"].iloc[0]) and (df["Destination"] == df_sel["Source"].iloc[0]) and (df["Source Port"] == df_sel["Destination Port"].iloc[0]) and (df["Destination Port"] == df_sel["Source Port"].iloc[0])
-	mask = mask1 or mask2
+	mask1 = (df["Source"] == df_sel[0]) & \
+					(df["Destination"] == df_sel[1]) & \
+					(df["Source Port"] == df_sel[2]) & \
+					(df["Destination Port"] == df_sel[3])
+	mask2 = (df["Source"] == df_sel[1]) & (df["Destination"] == df_sel[0]) & (df["Source Port"] == df_sel[3]) & (df["Destination Port"] == df_sel[2])
+	mask = mask1 | mask2
 	df = df.loc[mask,:]
 	return df
 
-def getSeqNum(df):
+def getSeqAckNum(df):
 	# should be TCP 
-	df.loc[:,'Sequence Num'] = df['Info'].apply(lambda x: int([int(x) for x in str.split(' ') if x.isdigit()][2]))
+	df = df.loc[ ~df["Info"].str.contains('[SYN]',regex=False) ]
+	df.loc[:,'Seq Num'] = df['Info'].apply( lambda x: int([int(i) for i in re.split(' |=', x) if i.isdigit()][2]) )
+	df.loc[:,'Ack Num'] = df['Info'].apply(lambda x: int([int(i) for i in re.split(' |=', x) if i.isdigit()][3]))
 	return df
 
 # def getAckNum(df):
 # def selectFlow(df, ind):
 
-def plotSeqNoPlots(df):
+def processQ9(df):
+	df_tcp = getTCP(df)
+	df_tcp = getSeqAckNum(df_tcp)
+
+# Q9a
+def plotSeqNoPlots(df,ind):
 	# get TCP and populate source, destination ports
 	df_tcp = getTCP(df)
 	# get flows
 	df_flows = getFlows(df_tcp)
-	sel_index = 1
-	sel_tuple = [df_flows["Source"].iloc(sel_index),df_flows["Destination"].iloc(sel_index), df_flows["Source Port"].iloc(sel_index), df_flows["Destination Port"].iloc(sel_index)]
-	df_sel = df_flows.loc[1,:].copy()
-	print("Selected Flow: ", df_sel)
-	df_flow_1 = getSingleFlow(df, df_sel)
-	print(df_flow_1)
+	# get index of maximum bytes flow
+	# sel_index = 0
+	# sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
+	# print(sel_tuple)
+
+	# Get Highest data flow TCP Flow
+	sel_tuple = connectionBytes(df_tcp)[ind]
+	sel_tuple = [sel_tuple[0], sel_tuple[1], int(sel_tuple[2]), int(sel_tuple[3])]
+	# sel_tuple = [sel_tuple[1], sel_tuple[0], sel_tuple[3], sel_tuple[2]]
+	print("Selected Flow: ", sel_tuple)
+	sel_flow = getSingleFlow(df_tcp, sel_tuple)
+	sel_flow = getSeqAckNum(sel_flow)
+
+	# print(sel_flow)
+
+	server_seq = sel_flow.loc[sel_flow["Source Port"] == 21]
+	client_ack = sel_flow.loc[sel_flow["Destination Port"] == 21]
+	y_seq = []
+	x_seq = []
+	y_ack = []
+	x_ack = []
+	for i in range(server_seq.shape[0]):
+		if (int(server_seq["Seq Num"].iloc[i]) != 0):
+			y_seq.append(int(server_seq["Seq Num"].iloc[i]))
+			x_seq.append(int(server_seq["Time"].iloc[i]))
+
+	for i in range(client_ack.shape[0]):
+		if (int(client_ack["Ack Num"].iloc[i]) != 0):
+			y_ack.append(int(client_ack["Ack Num"].iloc[i]))
+			x_ack.append(int(client_ack["Time"].iloc[i]))
+
+	plt.scatter(x_seq,y_seq,color='r',marker='x')
+	plt.scatter(x_ack,y_ack,color='g',marker='+')
+	plt.show()
 	# select a flow
 	# df_seq = getSeqNum(df_tcp)
 	# return df_seq
@@ -213,9 +258,11 @@ if __name__ == "__main__":
 	# plotFlows(df1)
 	# plotConnections(df1)
 	# plotInterArrival(df1)
-	# connectionBytes(df1)
 	# plotPacketInterArrival(df1)
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
-	plotSeqNoPlots(df1)
+	# plotSeqNoPlots(df1)
 	# plotPacketLengths(df1)
+	# Q9
+	plotSeqNoPlots(df1,0)
+	plotSeqNoPlots(df1,1)
