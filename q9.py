@@ -52,11 +52,8 @@ def seq_num_plot(flow):
 	print(len(ack_num_list))
 	x_axis_seq = [x[0] for x in seq_num_list]
 	y_axis_seq = [y[1] for y in seq_num_list]	
-	plt.plot(x_axis_seq,y_axis_seq,color = 'g')
+	plt.scatter(x_axis_seq,y_axis_seq,color = 'g')
 	x_axis_ack = [x[0] for x in ack_num_list]
 	y_axis_ack = [y[1] for y in ack_num_list]
 	plt.scatter(x_axis_ack,y_axis_ack,color = 'r')
 	plt.show()
-
-
-seq_num_plot(get_packet_tuple(df_tcp_server_side,0))

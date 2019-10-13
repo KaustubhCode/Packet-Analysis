@@ -28,7 +28,7 @@ def getEnd(df):
 def getNums(df):
 	df_syn = getSyn(df)
 	# Below step redundant
-	df_syn = df_syn.drop_duplicates(subset=['Info']) 
+	# df_syn = df_syn.drop_duplicates(subset=['Info']) 
 	# Ack sent again (Considering that whole info can never match for a new connection)
 	return (df_syn['Source'].drop_duplicates().size,df_syn['Destination'].drop_duplicates().size)
 
@@ -111,7 +111,7 @@ def connectionBytes(df):
 
 
 	plt.scatter(X[:-2],Y[:-2],c='r')
-	# plt.scatter(X[:-2],Z[:-2],c='g')
+	plt.scatter(X[:-2],Z[:-2],c='g')
 	# plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
 	plt.show()
 
@@ -151,7 +151,7 @@ def plotPacketInterArrival(df):
 	plt.plot(packet_inter_arrival,cumu)
 	plt.show()
 
-# Q7
+# Q8
 def plotPacketLengths(df):
 	df_tcp = getTCP(df)
 	df_incoming = df_tcp[df_tcp["Destination Port"] != 21]
@@ -164,13 +164,44 @@ def plotPacketLengths(df):
 
 	packet_incoming.sort()
 	packet_outgoing.sort()
-	# Remove last two values as outliers - very large
 	plt.plot(packet_incoming,cumu_incoming,'r')
 	plt.plot(packet_outgoing,cumu_outgoing,'b')
 	plt.show()
 
-
 #Q9
+def getSingleFlow(df, df_sel):
+	mask1 = (df["Source"] == df_sel["Source"].iloc[0]) and \
+					(df["Destination"] == df_sel["Destination"].iloc[0]) and \
+					(df["Source Port"] == df_sel["Source Port"].iloc[0]) and \
+					(df["Destination Port"] == df_sel["Destination Port"].iloc[0])
+	mask2 = (df["Source"] == df_sel["Destination"].iloc[0]) and (df["Destination"] == df_sel["Source"].iloc[0]) and (df["Source Port"] == df_sel["Destination Port"].iloc[0]) and (df["Destination Port"] == df_sel["Source Port"].iloc[0])
+	mask = mask1 or mask2
+	df = df.loc[mask,:]
+	return df
+
+def getSeqNum(df):
+	# should be TCP 
+	df.loc[:,'Sequence Num'] = df['Info'].apply(lambda x: int([int(x) for x in str.split(' ') if x.isdigit()][2]))
+	return df
+
+# def getAckNum(df):
+# def selectFlow(df, ind):
+
+def plotSeqNoPlots(df):
+	# get TCP and populate source, destination ports
+	df_tcp = getTCP(df)
+	# get flows
+	df_flows = getFlows(df_tcp)
+	sel_index = 1
+	sel_tuple = [df_flows["Source"].iloc(sel_index),df_flows["Destination"].iloc(sel_index), df_flows["Source Port"].iloc(sel_index), df_flows["Destination Port"].iloc(sel_index)]
+	df_sel = df_flows.loc[1,:].copy()
+	print("Selected Flow: ", df_sel)
+	df_flow_1 = getSingleFlow(df, df_sel)
+	print(df_flow_1)
+	# select a flow
+	# df_seq = getSeqNum(df_tcp)
+	# return df_seq
+
 
 if __name__ == "__main__":
 	df1 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-11.csv"))
@@ -184,4 +215,7 @@ if __name__ == "__main__":
 	# plotInterArrival(df1)
 	# connectionBytes(df1)
 	# plotPacketInterArrival(df1)
-	plotPacketLengths(df1)
+	# df_new = getSeqNum(df1)
+	# print(df_new.head())
+	plotSeqNoPlots(df1)
+	# plotPacketLengths(df1)
