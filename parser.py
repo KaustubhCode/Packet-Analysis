@@ -263,6 +263,9 @@ if __name__ == "__main__":
 	# print(df_new.head())
 	# plotSeqNoPlots(df1)
 	# plotPacketLengths(df1)
-	# Q9
-	plotSeqNoPlots(df1,0)
-	plotSeqNoPlots(df1,1)
+	
+	# # Q9a
+	# plotSeqNoPlots(df1,0)
+	# plotSeqNoPlots(df2,0)
+	# plotSeqNoPlots(df3,0)
+	# plotSeqNoPlots(df1,180)
