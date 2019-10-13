@@ -79,7 +79,7 @@ def plotConnections(df):
 	print("Median of connection times:",np.median(conn))
 
 	# Remove last two values as outliers - very large
-	plt.plot(conn[:-2],cumu[:-2])
+	plt.plot(conn[:-20],cumu[:-20])
 	plt.show()
 
 # Q5
@@ -109,9 +109,17 @@ def connectionBytes(df):
 	Y = Y[sort]
 	Z = Z[sort]
 
+	plt.subplot(1, 2, 1)
+	plt.scatter(X[:-4],Y[:-4],c='r')
+	plt.title("Bytes sent (to server)")
+	plt.xlabel("Connection time")
+	plt.ylabel("Bytes sent per connection")
 
-	plt.scatter(X[:-2],Y[:-2],c='r')
-	plt.scatter(X[:-2],Z[:-2],c='g')
+	plt.subplot(1, 2, 2)
+	plt.scatter(X[:-4],Z[:-4],c='g')
+	plt.title("Bytes Received (from server)")
+	plt.xlabel("Connection time")
+	plt.ylabel("Bytes sent per connection")
 	# plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
 	plt.show()
 
@@ -131,6 +139,8 @@ def plotInterArrival(df):
 	inter_arrival.sort()
 	# Remove last two values as outliers - very large
 	plt.plot(inter_arrival,cumu)
+	plt.title("CDF of inter-arrival times")
+	plt.xlabel("Time")
 	plt.show()
 
 # Q7
@@ -146,9 +156,11 @@ def plotPacketInterArrival(df):
 	print("Median of inter arrival times:",np.median(packet_inter_arrival))
 
 	packet_inter_arrival.sort()
-	print(packet_inter_arrival[-10:])
+	# print(packet_inter_arrival[-10:])
 	# Remove last two values as outliers - very large
 	plt.plot(packet_inter_arrival,cumu)
+	plt.title("CDF of packet inter-arrival times")
+	plt.xlabel("Time (in s)")
 	plt.show()
 
 # Q8
@@ -164,8 +176,16 @@ def plotPacketLengths(df):
 
 	packet_incoming.sort()
 	packet_outgoing.sort()
+	plt.subplot(1, 2, 1)
 	plt.plot(packet_incoming,cumu_incoming,'r')
+	plt.title("CDF for incoming packets lengths")
+	plt.xlabel("Packet size")
+
+	plt.subplot(1, 2, 2)
 	plt.plot(packet_outgoing,cumu_outgoing,'b')
+	plt.title("CDF for outgoing packets lengths")
+	plt.xlabel("Packet size")
+
 	plt.show()
 
 #Q9
@@ -212,10 +232,10 @@ if __name__ == "__main__":
 	# print(numFlows(df1))
 	# plotFlows(df1)
 	# plotConnections(df1)
-	# plotInterArrival(df1)
-	# connectionBytes(df1)
-	# plotPacketInterArrival(df1)
+	# plotInterArrival(df3)
+	# connectionBytes(df3)
+	# plotPacketInterArrival(df3)
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
-	plotSeqNoPlots(df1)
-	# plotPacketLengths(df1)
+	# plotSeqNoPlots(df1)
+	plotPacketLengths(df1)
