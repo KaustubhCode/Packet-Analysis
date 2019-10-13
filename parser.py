@@ -52,6 +52,8 @@ def getConnections(df):
 	df_syn = getSyn(df);
 	df_end = getEnd(df);
 
+#Q9
+
 if __name__ == "__main__":
 	df1 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-11.csv"))
 	df2 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-14.csv"))
