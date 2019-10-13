@@ -80,7 +80,7 @@ def plotConnections(df):
 	print("Median of connection times:",np.median(conn))
 
 	# Remove last two values as outliers - very large
-	plt.plot(conn[:-2],cumu[:-2])
+	plt.plot(conn[:-20],cumu[:-20])
 	plt.show()
 
 # Q5
@@ -114,13 +114,52 @@ def connectionBytes(df):
 	Y = Y[sort]
 	Z = Z[sort]
 
+	plt.subplot(1, 2, 1)
+	plt.scatter(X[:-4],Y[:-4],c='r')
+	plt.title("Bytes sent (to server)")
+	plt.xlabel("Connection time")
+	plt.ylabel("Bytes sent per connection")
 
-	# plt.scatter(X[:-2],Y[:-2],c='r')
-	# plt.scatter(X[:-2],Z[:-2],c='g')
-	# # plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
-	# plt.show()
+	plt.subplot(1, 2, 2)
+	plt.scatter(X[:-4],Z[:-4],c='g')
+	plt.title("Bytes Received (from server)")
+	plt.xlabel("Connection time")
+	plt.ylabel("Bytes sent per connection")
+	# plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
+	plt.show()
 
 	#To implement PEARSONS
+
+def getBusyConn(df):
+	df_merge = getConnections(df)[["Source","Destination","Source Port","Destination Port","Connection Time"]]
+	df_group = getTCP(df).groupby(["Source","Destination","Source Port","Destination Port"])
+	df_length = {name:group["Length"].sum() for name,group in df_group}
+
+	df_final = {}
+	for index, row in df_merge.iterrows():
+		a = tuple(row[0:4])
+		b = (row[1],row[0],row[3],row[2])
+		df_final[a] = [row[4],df_length[a],df_length[b]]
+
+	X = []
+	Y = []
+	Z = []
+	key = []
+	for i in df_final:
+		key.append(i)
+		X.append(df_final[i][0])
+		Y.append(df_final[i][1])
+		Z.append(df_final[i][2])
+	X = np.array(X)
+	Y = np.array(Y)
+	Z = np.array(Z)
+	key = np.array(key)
+	sort = X.argsort()
+	key = key[sort]
+	X = X[sort]
+	Y = Y[sort]
+	Z = Z[sort]
+
 	ind = Z.argsort()
 	Z = Z[ind]
 	key = key[ind]
@@ -141,6 +180,8 @@ def plotInterArrival(df):
 	inter_arrival.sort()
 	# Remove last two values as outliers - very large
 	plt.plot(inter_arrival,cumu)
+	plt.title("CDF of inter-arrival times")
+	plt.xlabel("Time")
 	plt.show()
 
 # Q7
@@ -156,9 +197,11 @@ def plotPacketInterArrival(df):
 	print("Median of inter arrival times:",np.median(packet_inter_arrival))
 
 	packet_inter_arrival.sort()
-	print(packet_inter_arrival[-10:])
+	# print(packet_inter_arrival[-10:])
 	# Remove last two values as outliers - very large
 	plt.plot(packet_inter_arrival,cumu)
+	plt.title("CDF of packet inter-arrival times")
+	plt.xlabel("Time (in s)")
 	plt.show()
 
 # Q8
@@ -174,8 +217,16 @@ def plotPacketLengths(df):
 
 	packet_incoming.sort()
 	packet_outgoing.sort()
+	plt.subplot(1, 2, 1)
 	plt.plot(packet_incoming,cumu_incoming,'r')
+	plt.title("CDF for incoming packets lengths")
+	plt.xlabel("Packet size")
+
+	plt.subplot(1, 2, 2)
 	plt.plot(packet_outgoing,cumu_outgoing,'b')
+	plt.title("CDF for outgoing packets lengths")
+	plt.xlabel("Packet size")
+
 	plt.show()
 
 #Q9
@@ -215,7 +266,7 @@ def plotSeqNoPlots(df,ind):
 	# print(sel_tuple)
 
 	# Get Highest data flow TCP Flow
-	sel_tuple = connectionBytes(df_tcp)[ind]
+	sel_tuple = getBusyConn(df_tcp)[ind]
 	sel_tuple = [sel_tuple[0], sel_tuple[1], int(sel_tuple[2]), int(sel_tuple[3])]
 	# sel_tuple = [sel_tuple[1], sel_tuple[0], sel_tuple[3], sel_tuple[2]]
 	print("Selected Flow: ", sel_tuple)
@@ -264,8 +315,7 @@ if __name__ == "__main__":
 	# plotSeqNoPlots(df1)
 	# plotPacketLengths(df1)
 	
-	# # Q9a
-	# plotSeqNoPlots(df1,0)
-	# plotSeqNoPlots(df2,0)
-	# plotSeqNoPlots(df3,0)
-	# plotSeqNoPlots(df1,180)
+	# Q9a (Plot High Traffic TCP Flows)
+	plotSeqNoPlots(df1,0)
+	plotSeqNoPlots(df2,0)
+	plotSeqNoPlots(df3,0)
