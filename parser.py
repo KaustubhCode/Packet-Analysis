@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+from scipy.optimize import curve_fit
 
 def cleanData(df):
 	df['Info'] = df['Info'].apply(lambda x: x.strip())
@@ -212,6 +213,9 @@ def plotPacketLengths(df):
 	packet_incoming = df_incoming["Length"].to_numpy()
 	packet_outgoing = df_outgoing["Length"].to_numpy()
 
+	pack_in_mean = packet_incoming.mean()
+	pack_out_mean = packet_outgoing.mean()
+	print("Incoming Packet Mean: ", pack_in_mean, " Outgoing packet Mean: ", pack_out_mean)
 	cumu_incoming = np.cumsum(packet_incoming/packet_incoming.sum())
 	cumu_outgoing = np.cumsum(packet_outgoing/packet_outgoing.sum())
 
@@ -250,29 +254,28 @@ def getSeqAckNum(df):
 # def getAckNum(df):
 # def selectFlow(df, ind):
 
-def processQ9(df):
+def getTupleHighFlow(df, ind):
 	df_tcp = getTCP(df)
-	df_tcp = getSeqAckNum(df_tcp)
+	# Get Highest data flow TCP Flow
+	sel_tuple = getBusyConn(df_tcp)[ind]
+	sel_tuple = [sel_tuple[0], sel_tuple[1], int(sel_tuple[2]), int(sel_tuple[3])]
+	return sel_tuple
 
 # Q9a
-def plotSeqNoPlots(df,ind):
+def plotSeqNoPlots(df,sel_tuple):
 	# get TCP and populate source, destination ports
 	df_tcp = getTCP(df)
 	# get flows
-	df_flows = getFlows(df_tcp)
+	# df_flows = getFlows(df_tcp)
 	# get index of maximum bytes flow
 	# sel_index = 0
 	# sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
 	# print(sel_tuple)
 
-	# Get Highest data flow TCP Flow
-	sel_tuple = getBusyConn(df_tcp)[ind]
-	sel_tuple = [sel_tuple[0], sel_tuple[1], int(sel_tuple[2]), int(sel_tuple[3])]
 	# sel_tuple = [sel_tuple[1], sel_tuple[0], sel_tuple[3], sel_tuple[2]]
 	print("Selected Flow: ", sel_tuple)
 	sel_flow = getSingleFlow(df_tcp, sel_tuple)
 	sel_flow = getSeqAckNum(sel_flow)
-
 	# print(sel_flow)
 
 	server_seq = sel_flow.loc[sel_flow["Source Port"] == 21]
@@ -298,6 +301,127 @@ def plotSeqNoPlots(df,ind):
 	# df_seq = getSeqNum(df_tcp)
 	# return df_seq
 
+def getRetransmissions(df,skip):
+	df_tcp = getTCP(df)
+	df_flows = getFlows(df_tcp)
+	retransmit_flow = []
+	retransmit_time = []
+	packet_no = []
+	for sel_index in range(df_flows.shape[0]):
+		sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
+		sel_flow = getSingleFlow(df_tcp, sel_tuple)
+		sel_flow = getSeqAckNum(sel_flow)
+		sel_flow = sel_flow.loc[sel_flow["Source Port"] == 21]
+		retransmit_count = 0
+		for i in range(sel_flow.shape[0]-1):
+			if sel_flow["Seq Num"].iloc[i] == sel_flow["Seq Num"].iloc[i+1]:
+				retransmit_count += 1
+				re_time = sel_flow["Time"].iloc[i]
+				re_time2 = sel_flow["Time"].iloc[i+1]
+				pack_num = sel_flow["Seq Num"].iloc[i]
+		if retransmit_count > 2:
+			if skip > 0:
+				skip-=1
+			else:
+				retransmit_flow.append(sel_index)
+				retransmit_time.append(re_time)
+				retransmit_time.append(re_time2)
+				packet_no.append(pack_num)
+				break
+	# print("Connections with retransmissions: ", retransmit_flow)
+	return (retransmit_flow[0], retransmit_time, packet_no)
+
+def getSpuriousRetrans(df,skip):
+	df_tcp = getTCP(df)
+	df_flows = getFlows(df_tcp)
+	# print(df_flows)
+	retransmit_flow = []
+	retransmit_time = []
+	for sel_index in range(df_flows.shape[0]):
+		sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
+		sel_flow = getSingleFlow(df_tcp, sel_tuple)
+		sel_flow = getSeqAckNum(sel_flow)
+		highestAck = 0
+		prev_seq_num = 0
+		for i in range(sel_flow.shape[0]):
+			if sel_flow["Destination Port"].iloc[i] == 21:
+				highestAck = sel_flow["Ack Num"].iloc[i]
+			if sel_flow["Source Port"].iloc[i] == 21:
+				seq_num = sel_flow["Seq Num"].iloc[i]
+				if seq_num < highestAck and seq_num == prev_seq_num:
+					if skip >0:
+						skip-=1
+					else:
+						print("Seq Num: ", seq_num, " Ack Num: ", highestAck)
+						return(sel_index)
+				prev_seq_num = seq_num
+
+def getDuplicateAcks(df, skip):
+	df_tcp = getTCP(df)
+	df_flows = getFlows(df_tcp)
+	# print(df_flows)
+	retransmit_flow = []
+	retransmit_time = []
+	ack_list = []
+	for sel_index in range(df_flows.shape[0]):
+		sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
+		sel_flow = getSingleFlow(df_tcp, sel_tuple)
+		sel_flow = sel_flow.loc[sel_flow["Destination Port"] == 21]
+		sel_flow = getSeqAckNum(sel_flow)
+		prev_ack = 0
+		dup_ack = False
+		for i in range(sel_flow.shape[0]):
+			ack_no = sel_flow["Ack Num"].iloc[i]
+			if ack_no == prev_ack:
+				dup_ack = True
+				ack_list.append(ack_no)
+				break
+			prev_ack = ack_no
+		if dup_ack == True and skip > 0:
+			skip -= 1
+		elif dup_ack == True:
+			print("Dup Acks Time: ",sel_flow["Time"].iloc[i-1], " ", sel_flow["Time"].iloc[i])
+			return sel_index, ack_list
+
+def getTupleFromFlow(df,sel_index):
+	df_tcp = getTCP(df)
+	df_flows = getFlows(df_tcp)
+	sel_tuple = [ df_flows["Source"].iloc[sel_index], df_flows["Destination"].iloc[sel_index], df_flows["Source Port"].iloc[sel_index], df_flows["Destination Port"].iloc[sel_index] ]
+	return sel_tuple
+
+# Q11
+def exp_func(x, a):
+	# return a * np.exp(-b * x) + c
+	return 1 - np.exp(-a * x)
+
+def getInterArrival(df):
+	df_syn = getFirstSyn(df)
+	conn_times = df_syn["Time"].to_numpy()
+	inter_arrival = np.diff(conn_times)
+
+	cumu = np.cumsum(inter_arrival/inter_arrival.sum())
+
+	print("Mean of connection times:",inter_arrival.mean())
+	print("Median of connection times:",np.median(inter_arrival))
+
+	inter_arrival.sort()
+	# Remove last two values as outliers - very large
+	return (inter_arrival,cumu)
+
+# Q8
+def getMeanPacketLengths(df):
+	df_tcp = getTCP(df)
+	df_incoming = df_tcp[df_tcp["Destination Port"] != 21]
+	df_outgoing = df_tcp[df_tcp["Destination Port"] == 21]
+	packet_incoming = df_incoming["Length"].to_numpy()
+	packet_outgoing = df_outgoing["Length"].to_numpy()
+
+	pack_in_mean = packet_incoming.mean()
+	pack_out_mean = packet_outgoing.mean()
+	print("Incoming Packet Mean: ", pack_in_mean, " Outgoing packet Mean: ", pack_out_mean)
+	cumu_incoming = np.cumsum(packet_incoming/packet_incoming.sum())
+	cumu_outgoing = np.cumsum(packet_outgoing/packet_outgoing.sum())
+	return [pack_in_mean, pack_out_mean]
 
 if __name__ == "__main__":
 	df1 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-11.csv"))
@@ -309,13 +433,86 @@ if __name__ == "__main__":
 	# plotFlows(df1)
 	# plotConnections(df1)
 	# plotInterArrival(df1)
+
+	# Q6
 	# plotPacketInterArrival(df1)
+	
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
 	# plotSeqNoPlots(df1)
+
+	# Q8 
 	# plotPacketLengths(df1)
 	
 	# Q9a (Plot High Traffic TCP Flows)
-	plotSeqNoPlots(df1,0)
-	plotSeqNoPlots(df2,0)
-	plotSeqNoPlots(df3,0)
+	# plotSeqNoPlots(df1,getTupleHighFlow(df1,0))
+	# plotSeqNoPlots(df2,getTupleHighFlow(df2,0))
+	# plotSeqNoPlots(df3,getTupleHighFlow(df3,0))
+
+	# Q9b (Retransmissions)	(2 plots - df1, df3)
+	# df = df3
+	# [sel_index, time, pack_no] = getRetransmissions(df,0)
+	# print("Packet No: ", pack_no, " Time: ", time)
+	# if sel_index != None:
+	# 	sel_tuple = getTupleFromFlow(df,sel_index)
+	# 	plotSeqNoPlots(df,sel_tuple)
+
+	# Q9c Spurious Retransmission
+	# df = df3
+	# sel_index = getSpuriousRetrans(df,0)
+	# print(sel_index)
+	# # sel_index = 602
+	# if sel_index != None:
+	# 	sel_tuple = getTupleFromFlow(df,sel_index)
+	# 	plotSeqNoPlots(df,sel_tuple)
+
+	# Q9d Duplicate ACKs (df1, df2)
+	# df = df1
+	# [sel_index, ack_list] = getDuplicateAcks(df,0)
+	# if sel_index != None:
+	# 	print("Duplicate Ack Number: ", ack_list)
+	# 	sel_tuple = getTupleFromFlow(df,sel_index)
+	# 	plotSeqNoPlots(df,sel_tuple)
+
+	# Q9e In-Order Delivery
+
+	## Q11 
+	## (Get lambda)
+	[inter_arrival, cumu] = getInterArrival(df2)
+	popt, pcov = curve_fit(exp_func, inter_arrival, cumu)
+	lamb = float(popt[0])
+	print("lambda: ", lamb)
+	print("Mean Inter Arrival Time:", 1/lamb)
+	plt.plot(inter_arrival, cumu)
+	plt.plot(inter_arrival, exp_func(inter_arrival, *popt), 'r-', label='exp fit: lambda=%5.3f' % tuple(popt))
+	plt.legend()
+	plt.show()
+	## Get Mu
+	[pack_in_mean, pack_out_mean] = getMeanPacketLengths(df1)
+	link_speed = 128 * pow(2,10) / 8
+	mu = link_speed/pack_in_mean
+	print("Link Speed: ", link_speed)
+	print("Mu: ", mu)
+	## Get Utilization factor
+	rho = lamb / mu
+	print("Rho: ", rho)
+	## Get Queue Size
+	avg_queue_size = lamb / (mu - lamb)
+	print("Average Queue Size: ", avg_queue_size)
+	## Get Average Waiting Time
+	avg_wait_time = 1/(mu - lamb) - 1/mu
+	print("Average Wait Time: ", avg_wait_time)
+	## plot lambda vs queue size and lambda vs wait time
+	la = [i / 100 * mu for i in range(0, 100)]
+	qu_plot = [i / (mu - i) for i in la]
+	wait_time_plot = [1/(mu - i) - 1/(mu) for i in la]
+	plt.plot(la,qu_plot,'r-',label='Avg Queue Size')
+	plt.xlabel('Lambda')
+	plt.ylabel('Avg Queue Size')
+	plt.legend()
+	plt.show()
+	plt.plot(la,wait_time_plot,'g-',label='Avg Wait Time')
+	plt.xlabel('Lambda')
+	plt.ylabel('Avg Wait Time')
+	plt.legend()
+	plt.show()
