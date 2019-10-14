@@ -28,6 +28,61 @@ def getFirstSyn(df):
 def getEnd(df):
 	return getTCP(df.loc[df["Info"].str.contains('FIN|RST')])
 
+def getFlows(df):
+	df_flow = getTCP(getSyn(df))
+	return df_flow.drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"])
+
+def getConnections(df):
+	# Remove all duplicate flows by keep = False
+	df_syn = getTCP(getFirstSyn(df)).drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"], keep = False)
+	# Incorrect - Deletes unnecessary connections with resent SYN packets 
+	# df_syn = getTCP(getSyn(df)).drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"], keep = False);
+	df_end = getEnd(df);
+	mask = (df_end["Destination Port"] != 21)
+	df_end.loc[mask, ["Source","Destination","Source Port","Destination Port"]] = df_end.loc[mask, ["Destination","Source","Destination Port","Source Port"]].values
+	df_end = df_end.drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"])	
+	# Connections which give following error are not counted
+	# Response: 426 Transfer aborted. Data connection closed and other random errors. (3 in total)
+	df_merge = pd.merge(df_syn,df_end,on=["Source","Destination","Source Port","Destination Port"])
+	df_merge["Connection Time"] = df_merge["Time_y"] -  df_merge["Time_x"]
+	return df_merge
+
+def getBusyConn(df):
+	df_merge = getConnections(df)[["Source","Destination","Source Port","Destination Port","Connection Time"]]
+	df_group = getTCP(df).groupby(["Source","Destination","Source Port","Destination Port"])
+	df_length = {name:group["Length"].sum() for name,group in df_group}
+
+	df_final = {}
+	for index, row in df_merge.iterrows():
+		a = tuple(row[0:4])
+		b = (row[1],row[0],row[3],row[2])
+		df_final[a] = [row[4],df_length[a],df_length[b]]
+
+	X = []
+	Y = []
+	Z = []
+	key = []
+	for i in df_final:
+		key.append(i)
+		X.append(df_final[i][0])
+		Y.append(df_final[i][1])
+		Z.append(df_final[i][2])
+	X = np.array(X)
+	Y = np.array(Y)
+	Z = np.array(Z)
+	key = np.array(key)
+	sort = X.argsort()
+	key = key[sort]
+	X = X[sort]
+	Y = Y[sort]
+	Z = Z[sort]
+
+	ind = Z.argsort()
+	Z = Z[ind]
+	key = key[ind]
+	# print("Max Size ", Z[-1], " Min Size: ", Z[0])
+	return np.flip(key,0)
+
 # Q1
 def getNums(df):
 	df_syn = getSyn(df)
@@ -35,10 +90,6 @@ def getNums(df):
 	# df_syn = df_syn.drop_duplicates(subset=['Info']) 
 	# Ack sent again (Considering that whole info can never match for a new connection)
 	return (df_syn['Source'].drop_duplicates().size,df_syn['Destination'].drop_duplicates().size)
-
-def getFlows(df):
-	df_flow = getTCP(getSyn(df))
-	return df_flow.drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"])
 
 # Q2
 def numFlows(df):
@@ -57,21 +108,6 @@ def plotFlows(df):
 	plt.hist(x[:-1],x,weights=y)
 	plt.show()
 
-def getConnections(df):
-	# Remove all duplicate flows by keep = False
-	df_syn = getTCP(getFirstSyn(df)).drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"], keep = False)
-	# Incorrect - Deletes unnecessary connections with resent SYN packets 
-	# df_syn = getTCP(getSyn(df)).drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"], keep = False);
-	df_end = getEnd(df);
-	mask = (df_end["Destination Port"] != 21)
-	df_end.loc[mask, ["Source","Destination","Source Port","Destination Port"]] = df_end.loc[mask, ["Destination","Source","Destination Port","Source Port"]].values
-	df_end = df_end.drop_duplicates(subset=["Source","Destination","Source Port","Destination Port"])	
-	# Connections which give following error are not counted
-	# Response: 426 Transfer aborted. Data connection closed and other random errors. (3 in total)
-	df_merge = pd.merge(df_syn,df_end,on=["Source","Destination","Source Port","Destination Port"])
-	df_merge["Connection Time"] = df_merge["Time_y"] -  df_merge["Time_x"]
-	return df_merge
-
 # Q4
 def plotConnections(df):
 	df_merge = getConnections(df)	
@@ -83,11 +119,11 @@ def plotConnections(df):
 	print("Median of connection times:",np.median(conn))
 
 	# Remove last two values as outliers - very large
-	plt.plot(conn[:-20],cumu[:-20])
+	plt.plot(conn[:-2],cumu[:-2])
 	plt.show()
 
 # Q5
-def connectionBytes(df):
+def connectionBytes(df,k):
 	df_merge = getConnections(df)[["Source","Destination","Source Port","Destination Port","Connection Time"]]
 	df_group = getTCP(df).groupby(["Source","Destination","Source Port","Destination Port"])
 	df_length = {name:group["Length"].sum() for name,group in df_group}
@@ -134,42 +170,31 @@ def connectionBytes(df):
 	#To implement PEARSONS
 	print("Pearson's coefficient of bytes sent to server and connection duration:",pearsonr(X,Y)[0])
 	print("Pearson's coefficient of bytes received to server and connection duration:",pearsonr(X,Z)[0])
+	print("Pearson's coefficient of bytes sent and received:",pearsonr(Y,Z)[0])
 
-def getBusyConn(df):
-	df_merge = getConnections(df)[["Source","Destination","Source Port","Destination Port","Connection Time"]]
-	df_group = getTCP(df).groupby(["Source","Destination","Source Port","Destination Port"])
-	df_length = {name:group["Length"].sum() for name,group in df_group}
+	X_o = []
+	Y_o = []
+	Z_o = []
 
-	df_final = {}
-	for index, row in df_merge.iterrows():
-		a = tuple(row[0:4])
-		b = (row[1],row[0],row[3],row[2])
-		df_final[a] = [row[4],df_length[a],df_length[b]]
+	params = [[1250,40000,10000], [2500, 75000, 25000], [1700,75000,50000]]
 
-	X = []
-	Y = []
-	Z = []
-	key = []
-	for i in df_final:
-		key.append(i)
-		X.append(df_final[i][0])
-		Y.append(df_final[i][1])
-		Z.append(df_final[i][2])
-	X = np.array(X)
-	Y = np.array(Y)
-	Z = np.array(Z)
-	key = np.array(key)
-	sort = X.argsort()
-	key = key[sort]
-	X = X[sort]
-	Y = Y[sort]
-	Z = Z[sort]
+	outlier_part = params[k-1]
+	#Removing outliers - by outliers we mean unusual data connections - most connections are short and send less bytes
+	for i in range(len(X)):
+		if (X[i] < outlier_part[0] and Y[i] < outlier_part[1] and Z[i] < outlier_part[2]):
+			X_o.append(X[i])
+			Y_o.append(Y[i])
+			Z_o.append(Z[i])
 
-	ind = Z.argsort()
-	Z = Z[ind]
-	key = key[ind]
-	# print("Max Size ", Z[-1], " Min Size: ", Z[0])
-	return np.flip(key,0)
+	print("Outlier removal - Pearson's coefficient of bytes sent to server and connection duration:",pearsonr(X_o,Y_o)[0])
+	print("Outlier removal - Pearson's coefficient of bytes received to server and connection duration:",pearsonr(X_o,Z_o)[0])
+	print("Outlier removal - Pearson's coefficient of bytes sent and received:",pearsonr(Y_o,Z_o)[0])
+
+	plt.scatter(Y_o,Z_o)
+	plt.title("Bytes sent vs bytes received")
+	plt.xlabel("Bytes sent")
+	plt.ylabel("Bytes received")
+	plt.show()
 
 # Q6
 def plotInterArrival(df):
@@ -436,26 +461,35 @@ if __name__ == "__main__":
 	df2 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-14.csv"))
 	df3 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-18.csv"))
 
+	# Change this for each dataset
+	k = 1
+	if (k == 1):
+		df = df1
+	elif (k == 2):
+		df = df2
+	else:
+		df = df3
+
 	# Q1
-	# print(getNums(df2))
+	# print(getNums(df))
 
 	# Q2
-	# print(numFlows(df1))
+	# print(numFlows(df))
 
 	# Q3
-	# plotFlows(df1)
+	# plotFlows(df)
 
 	# Q4
-	# plotConnections(df1)
+	# plotConnections(df)
 
 	# Q5
-	connectionBytes(df1)
+	# connectionBytes(df,k)
 
 	# Q6
-	# plotInterArrival(df1)
+	# plotInterArrival(df)
 
 	# Q7
-	# plotPacketInterArrival(df3)
+	# plotPacketInterArrival(df)
 	
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
