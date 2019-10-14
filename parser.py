@@ -18,7 +18,8 @@ def getFTP(df):
 	return df.loc[df["Protocol"] ==  "FTP"]
 
 def getSyn(df): # Does not consider duplicate sent acks
-	return df.loc[df["Info"].str.contains('[SYN]',regex=False) ]
+	return df[df['Info'].apply(lambda x: 'SYN' in x and ' ACK' not in x)]
+	# return df.loc[df["Info"].str.contains('[SYN]', regex=False) ]
 
 def getFirstSyn(df):
 	return getSyn(df).drop_duplicates(subset=['Info'])
@@ -172,6 +173,8 @@ def plotInterArrival(df):
 	df_syn = getFirstSyn(df)
 	conn_times = df_syn["Time"].to_numpy()
 	inter_arrival = np.diff(conn_times)
+
+	np.savetxt("inter_arrival_3.csv",inter_arrival,delimiter=",")
 
 	cumu = np.cumsum(inter_arrival/inter_arrival.sum())
 
@@ -428,7 +431,7 @@ if __name__ == "__main__":
 	df2 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-14.csv"))
 	df3 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-18.csv"))
 
-	# print(getNums(df1))
+	# print(getNums(df2))
 	# print(numFlows(df1))
 	# plotFlows(df1)
 	# plotConnections(df1)
