@@ -4,6 +4,9 @@ library("fitdistrplus")
 colnames(df) <- "X"
 plotdist(df$X, histo=TRUE, demp=TRUE)
 
+plot(df$X)
+descdist(df$X)
+
 par(mfrow=c(2,2))
 fe <- fitdist(df$X, "exp")
 fe

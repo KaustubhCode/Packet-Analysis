@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import re
 from scipy.optimize import curve_fit
+from scipy.stats import pearsonr
 
 def cleanData(df):
 	df['Info'] = df['Info'].apply(lambda x: x.strip())
@@ -126,11 +127,13 @@ def connectionBytes(df):
 	plt.scatter(X[:-4],Z[:-4],c='g')
 	plt.title("Bytes Received (from server)")
 	plt.xlabel("Connection time")
-	plt.ylabel("Bytes sent per connection")
+	plt.ylabel("Bytes received per connection")
 	# plt.scatter(X[:-2],Y[:-2] + Z[:-2],c='b')
 	plt.show()
 
 	#To implement PEARSONS
+	print("Pearson's coefficient of bytes sent to server and connection duration:",pearsonr(X,Y)[0])
+	print("Pearson's coefficient of bytes received to server and connection duration:",pearsonr(X,Z)[0])
 
 def getBusyConn(df):
 	df_merge = getConnections(df)[["Source","Destination","Source Port","Destination Port","Connection Time"]]
@@ -433,14 +436,26 @@ if __name__ == "__main__":
 	df2 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-14.csv"))
 	df3 = cleanData(pd.read_csv("lbnl.anon-ftp.03-01-18.csv"))
 
+	# Q1
 	# print(getNums(df2))
+
+	# Q2
 	# print(numFlows(df1))
+
+	# Q3
 	# plotFlows(df1)
+
+	# Q4
 	# plotConnections(df1)
-	# plotInterArrival(df1)
+
+	# Q5
+	connectionBytes(df1)
 
 	# Q6
-	plotPacketInterArrival(df3)
+	# plotInterArrival(df1)
+
+	# Q7
+	# plotPacketInterArrival(df3)
 	
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
