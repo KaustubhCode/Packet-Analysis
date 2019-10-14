@@ -1,6 +1,6 @@
 
 df <- read.csv("/home/kaustubh/Desktop/COL334/Packet-Analysis/inter_arrival_1.csv", header=FALSE)
-df <- read.csv("W:/IITD Acad/Sem 7/COL334/Ass3/Packet-Analysis/packet_inter_arrival_2.csv", header=FALSE)
+df <- read.csv("W:/IITD Acad/Sem 7/COL334/Ass3/Packet-Analysis/inter_arrival_2.csv", header=FALSE)
 library("fitdistrplus")
 colnames(df) <- "X"
 plotdist(df$X, histo=TRUE, demp=TRUE)
