@@ -477,45 +477,46 @@ if __name__ == "__main__":
 	# 	sel_tuple = getTupleFromFlow(df,sel_index)
 	# 	plotSeqNoPlots(df,sel_tuple)
 
-	# Q9e In-Order Delivery
+	# Q9e Out-of-Order Delivery
 
-	## Q11 
-	## (Get lambda)
-	[inter_arrival, cumu] = getInterArrival(df2)
-	popt, pcov = curve_fit(exp_func, inter_arrival, cumu)
-	lamb = float(popt[0])
-	print("lambda: ", lamb)
-	print("Mean Inter Arrival Time:", 1/lamb)
-	plt.plot(inter_arrival, cumu)
-	plt.plot(inter_arrival, exp_func(inter_arrival, *popt), 'r-', label='exp fit: lambda=%5.3f' % tuple(popt))
-	plt.legend()
-	plt.show()
-	## Get Mu
-	[pack_in_mean, pack_out_mean] = getMeanPacketLengths(df1)
-	link_speed = 128 * pow(2,10) / 8
-	mu = link_speed/pack_in_mean
-	print("Link Speed: ", link_speed)
-	print("Mu: ", mu)
-	## Get Utilization factor
-	rho = lamb / mu
-	print("Rho: ", rho)
-	## Get Queue Size
-	avg_queue_size = lamb / (mu - lamb)
-	print("Average Queue Size: ", avg_queue_size)
-	## Get Average Waiting Time
-	avg_wait_time = 1/(mu - lamb) - 1/mu
-	print("Average Wait Time: ", avg_wait_time)
-	## plot lambda vs queue size and lambda vs wait time
-	la = [i / 100 * mu for i in range(0, 100)]
-	qu_plot = [i / (mu - i) for i in la]
-	wait_time_plot = [1/(mu - i) - 1/(mu) for i in la]
-	plt.plot(la,qu_plot,'r-',label='Avg Queue Size')
-	plt.xlabel('Lambda')
-	plt.ylabel('Avg Queue Size')
-	plt.legend()
-	plt.show()
-	plt.plot(la,wait_time_plot,'g-',label='Avg Wait Time')
-	plt.xlabel('Lambda')
-	plt.ylabel('Avg Wait Time')
-	plt.legend()
-	plt.show()
+	# ## Q11 
+	# ## (Get lambda)
+	# df = df1
+	# [inter_arrival, cumu] = getInterArrival(df)
+	# popt, pcov = curve_fit(exp_func, inter_arrival, cumu)
+	# lamb = float(popt[0])
+	# print("lambda: ", lamb)
+	# print("Mean Inter Arrival Time:", 1/lamb)
+	# plt.plot(inter_arrival, cumu)
+	# plt.plot(inter_arrival, exp_func(inter_arrival, *popt), 'r-', label='exp fit: lambda=%5.3f' % tuple(popt))
+	# plt.legend()
+	# plt.show()
+	# ## Get Mu
+	# [pack_in_mean, pack_out_mean] = getMeanPacketLengths(df)
+	# link_speed = 128 * 1000 / 8
+	# mu = link_speed/pack_in_mean
+	# print("Link Speed: ", link_speed, " bytes per second")
+	# print("Mu: ", mu)
+	# ## Get Utilization factor
+	# rho = lamb / mu
+	# print("Rho: ", rho)
+	# ## Get Queue Size
+	# avg_queue_size = lamb / (mu - lamb)
+	# print("Average Queue Size: ", avg_queue_size)
+	# ## Get Average Waiting Time
+	# avg_wait_time = 1/(mu - lamb) - 1/mu
+	# print("Average Wait Time: ", avg_wait_time)
+	# ## plot lambda vs queue size and lambda vs wait time
+	# la = [i / 100 * mu for i in range(0, 100)]
+	# qu_plot = [i / (mu - i) for i in la]
+	# wait_time_plot = [1/(mu - i) - 1/(mu) for i in la]
+	# plt.plot(la,qu_plot,'r-',label='Avg Queue Size')
+	# plt.xlabel('Lambda')
+	# plt.ylabel('Avg Queue Size')
+	# plt.legend()
+	# plt.show()
+	# plt.plot(la,wait_time_plot,'g-',label='Avg Wait Time')
+	# plt.xlabel('Lambda')
+	# plt.ylabel('Avg Wait Time')
+	# plt.legend()
+	# plt.show()
