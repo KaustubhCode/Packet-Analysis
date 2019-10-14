@@ -174,7 +174,7 @@ def plotInterArrival(df):
 	conn_times = df_syn["Time"].to_numpy()
 	inter_arrival = np.diff(conn_times)
 
-	np.savetxt("inter_arrival_3.csv",inter_arrival,delimiter=",")
+	# np.savetxt("inter_arrival_3.csv",inter_arrival,delimiter=",")
 
 	cumu = np.cumsum(inter_arrival/inter_arrival.sum())
 
@@ -194,6 +194,8 @@ def plotPacketInterArrival(df):
 	df_to_server = df_tcp[df_tcp["Destination Port"] == 21]
 	packet_conn_times = df_to_server["Time"].to_numpy()
 	packet_inter_arrival = np.diff(packet_conn_times)
+
+	# np.savetxt("packet_inter_arrival_3.csv",packet_inter_arrival,delimiter=",")
 
 	cumu = np.cumsum(packet_inter_arrival/packet_inter_arrival.sum())
 
@@ -438,7 +440,7 @@ if __name__ == "__main__":
 	# plotInterArrival(df1)
 
 	# Q6
-	# plotPacketInterArrival(df1)
+	plotPacketInterArrival(df3)
 	
 	# df_new = getSeqNum(df1)
 	# print(df_new.head())
